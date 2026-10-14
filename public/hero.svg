@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 680" preserveAspectRatio="xMidYMid slice" shape-rendering="crispEdges" role="img" aria-labelledby="title desc">
+  <title id="title">PathPilot mountain trail</title>
+  <desc id="desc">Pixel-art blue sky and clouds over a mountain valley, green meadow, and a winding trail.</desc>
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#1681c9"/><stop offset=".55" stop-color="#37b8dd"/><stop offset="1" stop-color="#b9eef2"/></linearGradient>
+    <linearGradient id="meadow" x2="0" y2="1"><stop stop-color="#72c39d"/><stop offset="1" stop-color="#237d69"/></linearGradient>
+    <pattern id="pixel-stars" width="84" height="66" patternUnits="userSpaceOnUse"><rect x="11" y="19" width="4" height="4" fill="#dcfbff" opacity=".75"/><rect x="62" y="45" width="3" height="3" fill="#f4ffff" opacity=".7"/><rect x="42" y="7" width="5" height="3" fill="#c1f7ff" opacity=".55"/></pattern>
+  </defs>
+  <rect width="1440" height="680" fill="url(#sky)"/>
+  <rect width="1440" height="280" fill="url(#pixel-stars)"/>
+  <g fill="#75dcf1" opacity=".92">
+    <path d="M0 132h96v-20h72V92h58v24h53v22h79v25H0zm340-67h72V45h67v20h56v27h50v27H340zm520 34h84V77h68v18h57v24h77v29H860zm312-53h68V26h82v23h58v28h70v24h-278z"/>
+    <path d="M92 166h70v-18h62v18h81v24H92zm1040-14h80v-20h68v20h90v24h-238z" fill="#c9f6fa"/>
+  </g>
+  <g fill="#97eafa"><path d="M164 96h45v-14h68v17h30v22H164zm774 37h54v-15h73v15h46v21H938zM528 104h45V90h52v14h31v19H528z"/></g>
+  <path fill="#315f77" d="M0 311 124 206l59 40 124-156 135 128 87-69 99 114 104-165 130 156 70-82 123 110 107-143 91 87 87-45 100 93v133H0z"/>
+  <path fill="#1d475b" d="m0 315 124-109 60 40 87-110 64 53-41 35 49-18 95 83 78-78 59 44 52-56 49 79 104-165 83 100-55 19 87-6 68 80 71-78 123 109 108-143 82 76 59-30v177H0z"/>
+  <path fill="#5f9887" d="M0 344 102 310l98 28 104-52 124 39 111-55 102 44 112-46 113 42 115-41 125 37 104-43 104 37v174H0z"/>
+  <path fill="#4a9678" d="M0 390 132 356l104 25 105-36 104 39 104-36 107 33 117-40 106 44 104-38 110 34 99-36 148 43v212H0z"/>
+  <path fill="url(#meadow)" d="M0 430 122 394l107 28 112-40 111 39 106-30 118 38 110-41 124 41 102-37 115 37 105-30 108 35v256H0z"/>
+  <path fill="#368b70" d="M0 526h1440v154H0z" opacity=".62"/>
+  <path fill="#94cc91" d="M0 458h180v20h120v-16h122v18h104v-20h112v20h128v-18h105v21h118v-17h152v25h99v-21h100v198H0z" opacity=".42"/>
+  <g fill="#d5b276" opacity=".95">
+    <path d="M696 680h92v-28h-43v-24h76v-26h-59v-25h72v-25h-56v-22h75v-25h-57v-25h87v-27h-84v-24h-58v35h36v28h-66v25h49v25h-61v26h50v25h-62v25h49v24h-38z"/>
+    <path d="M0 614h140v-25h89v-20h113v20h73v25H0zm1040-75h95v-19h108v19h96v28h-299z" opacity=".75"/>
+  </g>
+  <g fill="#f472cb" opacity=".9">
+    <path d="M206 526h8v-12h12v12h8v8h-8v12h-12v-12h-8zm278 52h8v-12h12v12h8v8h-8v12h-12v-12h-8zm518-42h7v-11h12v11h8v8h-8v12h-12v-12h-7zm306 54h7v-12h12v12h8v8h-8v12h-12v-12h-7z"/>
+    <path d="M108 590h12v-8h9v8h8v9h-8v10h-9v-10h-12zm680 19h10v-9h9v9h10v9h-10v10h-9v-10h-10z" fill="#f4d47d"/>
+  </g>
+  <g fill="#143f3d">
+    <path d="M82 419h10v-22h9v-24h9v-24h18v24h10v24h9v22h12v20H82zm1160-26h12v-19h10v-25h8v-23h18v23h10v25h11v19h12v20h-81z"/>
+    <path d="M255 452h7v-17h8v-21h9v-18h15v18h8v21h9v17h10v15h-66zm890-8h9v-18h8v-21h10v-20h17v20h9v21h9v18h10v18h-72z"/>
+  </g>
+  <g fill="#216358"><path d="M120 397h9v-17h-9zm23 19h9v-17h-9zm1092-22h9v-17h-9zm22 20h9v-17h-9zM277 433h8v-15h-8zm895-3h8v-15h-8z"/></g>
+  <g transform="translate(372 432)" shape-rendering="crispEdges">
+    <path fill="#283b50" d="M18 39h47v38H18z"/><path fill="#49677b" d="M24 31h38v34H24z"/><path fill="#90cbd0" d="M30 39h26v18H30z"/><path fill="#163548" d="M35 45h5v5h-5zm12 0h5v5h-5zm-8 7h11v2H39z"/><path fill="#d5e1d4" d="M27 25h32v8H27zm-8 8h8v34h-8zm43 0h8v34h-8z"/><path fill="#d4b67a" d="M13 69h57v8H13zm-7 8h71v8H6z"/><path fill="#28465a" d="M28 86h27v11H28zm-9 10h45v7H19z"/><path fill="#ea80d7" d="M46 20h14v7H46zm9-7h10v7H55z"/>
+  </g>
+  <g fill="#09252f" opacity=".42"><path d="M0 659h48v-11h27v11h53v-20h20v20h76v-12h36v12h70v-21h22v21h73v-13h43v13h61v-20h18v20h83v-10h44v10h67v-18h25v18h85v-12h43v12h88v-21h20v21h72v-12h36v12h86v-20h25v20h80v21H0z"/></g>
+</svg>

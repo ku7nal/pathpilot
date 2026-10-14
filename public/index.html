@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#020617">
+    <meta name="description" content="Turn a software career goal into a path informed by live job requirements.">
+    <title>PathPilot — Start Your Career Adventure</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800&family=Pixelify+Sans:wght@500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="PathPilot home">
+        <span class="brand-coin" aria-hidden="true">P</span>
+        <span>PathPilot</span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="#job-scout">Explore</a>
+        <a href="#results">Roadmap</a>
+        <a href="#workspace">Workspace</a>
+      </nav>
+      <a class="header-cta pixel-button" href="#job-scout">Start your path</a>
+    </header>
+
+    <main>
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <img class="hero-world" src="hero.svg" alt="A pixel-art trail through a green mountain valley toward a small lookout tower">
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-copy">
+          <p class="pixel-kicker">START YOUR</p>
+          <h1 id="hero-title">Career Adventure</h1>
+          <p class="hero-subtitle">Find a path to the work you want to do.</p>
+          <a class="pixel-button hero-button" href="#job-scout">Get started</a>
+        </div>
+        <div class="hero-ground-note"><span class="tiny-star" aria-hidden="true">✦</span> Built from the live web</div>
+      </section>
+
+      <section class="job-scout section-wrap" id="job-scout" aria-labelledby="scout-title">
+        <div class="section-heading">
+          <h2 id="scout-title">Every path starts with a goal</h2>
+          <p>Tell us what you want to learn or become. Explore a complete career path with sample jobs, learning steps, projects, and opportunities.</p>
+        </div>
+
+        <form id="goal-form" class="goal-form">
+          <label class="sr-only" for="goal-input">What do you want to learn or become?</label>
+          <div class="goal-input-wrap">
+            <span class="search-icon" aria-hidden="true"></span>
+            <input id="goal-input" name="goal" type="text" minlength="3" maxlength="240" placeholder="I want to become an AI engineer" autocomplete="off" required>
+            <button class="pixel-button scout-button" type="submit">Build my demo path</button>
+          </div>
+          <div class="goal-suggestions" aria-label="Example goals">
+            <span>Try a goal:</span>
+            <button type="button" class="suggestion-chip" data-goal="I want to become an AI engineer">AI engineer</button>
+            <button type="button" class="suggestion-chip" data-goal="I want to become a frontend developer">Frontend developer</button>
+            <button type="button" class="suggestion-chip" data-goal="I want to learn data analysis with Python">Data analysis</button>
+          </div>
+        </form>
+
+        <div id="research-state" class="research-state" role="status" aria-live="polite" hidden></div>
+        <section id="results" class="results" aria-labelledby="results-title" hidden>
+          <div class="results-topline">
+            <div>
+              <p class="section-label">SAMPLE JOB SIGNALS</p>
+              <h3 id="results-title">Your hiring landscape</h3>
+            </div>
+            <p id="results-summary" class="results-summary"></p>
+          </div>
+          <div id="skill-signals" class="skill-signals" hidden>
+            <h4>Skills showing up in these roles</h4>
+            <div id="skill-list" class="skill-list"></div>
+          </div>
+          <div id="job-list" class="job-grid"></div>
+          <p id="source-note" class="source-note"></p>
+          <div class="roadmap-action-row">
+            <button id="build-roadmap" class="pixel-button" type="button">Build my roadmap</button>
+          </div>
+        </section>
+        <section id="projects" class="workspace-section" aria-labelledby="projects-title" hidden>
+          <div class="results-topline"><div><p class="section-label">BUILD YOUR PORTFOLIO</p><h3 id="projects-title">Projects & milestones</h3></div><p class="results-summary">Practice each skill with work you can show.</p></div>
+          <div id="project-list" class="project-grid"></div>
+        </section>
+        <section id="opportunities" class="workspace-section" aria-labelledby="opportunities-title" hidden>
+          <div class="results-topline"><div><p class="section-label">PLAN YOUR NEXT MOVE</p><h3 id="opportunities-title">Opportunity calendar</h3></div><p class="results-summary">Sample dates for the demo calendar.</p></div>
+          <div id="opportunity-list" class="opportunity-list"></div>
+        </section>
+        <section id="workspace" class="workspace-section" aria-labelledby="workspace-title" hidden>
+          <div class="results-topline"><div><p class="section-label">YOUR CAREER WORKSPACE · DEMO DATA</p><h3 id="workspace-title">Your next steps</h3></div><p class="results-summary">Progress saves in this page until it is refreshed.</p></div>
+          <div id="workspace-stats" class="workspace-stats"></div>
+          <div class="workspace-columns"><div><h4>Recommended next</h4><div id="next-steps" class="next-steps"></div></div><div><h4>Saved resources</h4><div id="saved-resources" class="saved-resources"></div><h4 class="notification-heading">Notifications</h4><div class="demo-notice">✦ Demo reminder: Review your project milestones this week.</div></div></div>
+        </section>
+        <div id="roadmap-state" class="research-state roadmap-state" role="status" aria-live="polite" hidden></div>
+        <section id="roadmap" class="roadmap" aria-labelledby="roadmap-title" hidden>
+          <div class="results-topline">
+            <div>
+              <p class="section-label">YOUR LEARNING PATH</p>
+              <h3 id="roadmap-title">Job-aligned roadmap</h3>
+            </div>
+            <p id="roadmap-summary" class="results-summary"></p>
+          </div>
+          <p id="roadmap-coverage" class="source-note"></p>
+          <div id="roadmap-phases" class="roadmap-phases"></div>
+        </section>
+      </section>
+
+      <section class="how-section section-wrap" id="how-it-works">
+        <h2>From goal to a complete plan</h2>
+        <div class="how-copy">
+          <span class="fish-spark" aria-hidden="true">✦</span>
+          <p>This interactive demo uses sample career data to show how job signals, a learning roadmap, portfolio projects, and opportunities fit together.</p>
+          <p class="fine-print">Sample jobs, dates, progress, and notifications are illustrative and are not live or verified.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand footer-brand" href="#top"><span class="brand-coin" aria-hidden="true">P</span><span>PathPilot</span></a>
+      <span>Made for the next step in your journey <span aria-hidden="true">✦</span></span>
+      <a href="#job-scout">Find your path</a>
+    </footer>
+  </body>
+</html>

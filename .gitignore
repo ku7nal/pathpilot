@@ -1,0 +1,6 @@
+/.scratch/
+/.playwright-cli/
+/node_modules/
+.env
+.env.*
+!.env.example
