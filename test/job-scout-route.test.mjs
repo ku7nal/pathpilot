@@ -29,6 +29,7 @@ test("job scout streams verified, source-linked roles for the inferred target", 
       return Response.json({ results: [
         { title: "Acme careers", url: "https://boards.greenhouse.io/acme/jobs/1", site_name: "Greenhouse" },
         { title: "Bright careers", url: "https://jobs.lever.co/bright/2", site_name: "Lever" },
+        { title: "Contoso careers", url: "https://jobs.ashbyhq.com/contoso/3", site_name: "Ashby" },
         { title: "Untrusted result", url: "https://example.com/job", site_name: "Example" },
       ] });
     }
@@ -36,6 +37,7 @@ test("job scout streams verified, source-linked roles for the inferred target", 
     assert.equal(url.hostname, "agent.tinyfish.ai");
     agentCalls.push(JSON.parse(init.body));
     const index = agentCalls.length;
+    if (index === 3) return new Response("Agent unavailable", { status: 503 });
     const company = index === 1 ? "Acme" : "Bright";
     const page = index === 1 ? "https://boards.greenhouse.io/acme/jobs/1" : "https://jobs.lever.co/bright/2";
     const applicationPage = index === 1 ? "https://boards.greenhouse.io/acme/jobs/3" : "https://jobs.lever.co/bright/4";
@@ -62,8 +64,10 @@ test("job scout streams verified, source-linked roles for the inferred target", 
   assert.equal(complete.jobs[0].sourceUrl, "https://boards.greenhouse.io/acme/jobs/1");
   assert.equal(complete.jobs[0].url, "https://boards.greenhouse.io/acme/jobs/3");
   assert.deepEqual(complete.skills, [{ name: "Python", count: 2 }, { name: "SQL", count: 2 }]);
-  assert.equal(complete.sourceCount, 2);
-  assert.equal(agentCalls.length, 2);
+  assert.equal(complete.sourceCount, 3);
+  assert.equal(complete.inaccessibleSources, 0);
+  assert.equal(complete.uncertainSources, 1);
+  assert.equal(agentCalls.length, 3);
   assert.ok(agentCalls.every((call) => call.output_schema && call.goal.includes("AI Engineer")));
 });
 

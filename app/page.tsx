@@ -11,6 +11,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { CareerPlan } from "@/components/career-plan";
+import { postResearch } from "@/lib/post-research";
 
 type Job = {
   title: string;
@@ -38,49 +39,8 @@ const suggestedGoals = [
   "I want to learn data analysis with Python",
 ];
 
-function readSseEvent(block: string) {
-  const eventName = block.match(/^event:\s*(.+)$/m)?.[1]?.trim();
-  const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
-  if (!eventName || !data) return null;
-  try { return { eventName, data: JSON.parse(data) as Record<string, unknown> }; }
-  catch { return null; }
-}
-
 async function scoutJobs(goal: string, onProgress: (message: string) => void): Promise<ScoutResult> {
-  const response = await fetch("/api/job-scout", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ goal }),
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error || "Live research could not start.");
-  }
-  if (!response.headers.get("content-type")?.includes("text/event-stream") || !response.body) {
-    throw new Error("The research service returned an unexpected response.");
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let pending = "";
-  let result: ScoutResult | null = null;
-  while (true) {
-    const { value, done } = await reader.read();
-    pending += decoder.decode(value, { stream: !done });
-    let boundary;
-    while ((boundary = pending.search(/\r?\n\r?\n/)) !== -1) {
-      const delimiter = pending.slice(boundary).match(/^\r?\n\r?\n/)?.[0] ?? "\n\n";
-      const event = readSseEvent(pending.slice(0, boundary));
-      pending = pending.slice(boundary + delimiter.length);
-      if (!event) continue;
-      if (["status", "progress"].includes(event.eventName) && typeof event.data.message === "string") onProgress(event.data.message);
-      if (event.eventName === "complete") result = event.data as unknown as ScoutResult;
-      if (event.eventName === "error") throw new Error(typeof event.data.message === "string" ? event.data.message : "Live research failed.");
-    }
-    if (done) break;
-  }
-  if (!result) throw new Error("The research stream ended before results were returned.");
-  return result;
+  return postResearch<ScoutResult>("/api/job-scout", { goal }, onProgress);
 }
 
 export default function Home() {

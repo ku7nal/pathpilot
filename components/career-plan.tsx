@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { postResearch } from "@/lib/post-research";
 
 type Job = { title: string; company: string; experience: string; skills: string[] };
 type Skill = { name: string; count: number };
@@ -37,40 +38,6 @@ function coverageText(data: Coverage) {
   if (data.inaccessibleSources.length) parts.push(`Could not access: ${data.inaccessibleSources.join(", ")}.`);
   if (data.uncertainSources.length) parts.push(`Could not verify: ${data.uncertainSources.join(", ")}.`);
   return parts.join(" ");
-}
-
-async function research(workflow: Workflow, body: object, progress: (message: string) => void) {
-  const response = await fetch(`/api/${workflow}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  if (!response.ok) {
-    const result = await response.json().catch(() => ({}));
-    throw new Error(result.error || "Live research could not start.");
-  }
-  if (!response.headers.get("content-type")?.includes("text/event-stream") || !response.body) throw new Error("The research service returned an unexpected response.");
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let pending = "";
-  let result: Record<string, unknown> | null = null;
-  while (true) {
-    const { value, done } = await reader.read();
-    pending += decoder.decode(value, { stream: !done });
-    let boundary;
-    while ((boundary = pending.search(/\r?\n\r?\n/)) !== -1) {
-      const delimiter = pending.slice(boundary).match(/^\r?\n\r?\n/)?.[0] || "\n\n";
-      const block = pending.slice(0, boundary);
-      const name = block.match(/^event:\s*(.+)$/m)?.[1]?.trim();
-      const dataText = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
-      pending = pending.slice(boundary + delimiter.length);
-      if (!name || !dataText) continue;
-      let data: Record<string, unknown>;
-      try { data = JSON.parse(dataText); } catch { continue; }
-      if (["status", "progress"].includes(name) && typeof data.message === "string") progress(data.message);
-      if (name === "complete") result = data;
-      if (name === "error") throw new Error(typeof data.message === "string" ? data.message : "Live research failed.");
-    }
-    if (done) break;
-  }
-  if (!result) throw new Error("The research stream ended before results were returned.");
-  return result;
 }
 
 export function CareerPlan({ goal, scout }: { goal: string; scout: JobScout }) {
@@ -110,7 +77,7 @@ export function CareerPlan({ goal, scout }: { goal: string; scout: JobScout }) {
     const run = async (workflow: Workflow, setData: (data: Record<string, unknown>) => void) => {
       setStatuses((current) => ({ ...current, [workflow]: { state: "loading", message: "Waiting for TinyFish…" } }));
       try {
-        const data = await research(workflow, body, (message) => setStatuses((current) => ({ ...current, [workflow]: { state: "loading", message } })));
+        const data = await postResearch<Record<string, unknown>>(`/api/${workflow}`, body, (message) => setStatuses((current) => ({ ...current, [workflow]: { state: "loading", message } })));
         setData(data);
         setStatuses((current) => ({ ...current, [workflow]: { state: "done", message: String(data.message || "Research complete.") } }));
       } catch (caught) {
