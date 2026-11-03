@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useState } from "react";
+import { FormEvent, useCallback, useState } from "react";
 import { Search } from "lucide-react";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
@@ -43,8 +43,8 @@ const suggestedGoals = [
   "I want to learn data analysis with Python",
 ];
 
-async function scoutJobs(goal: string, onProgress: (message: string) => void): Promise<ScoutResult> {
-  return postResearch<ScoutResult>("/api/job-scout", { goal }, onProgress);
+async function scoutJobs(goal: string, reservationId: Id<"planReservations">, onProgress: (message: string) => void): Promise<ScoutResult> {
+  return postResearch<ScoutResult>("/api/job-scout", { goal, reservationId }, onProgress);
 }
 
 export default function Home() {
@@ -64,9 +64,12 @@ function CareerHome() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ScoutResult | null>(null);
+  const [reservationId, setReservationId] = useState<Id<"planReservations"> | null>(null);
   const workspaces = useQuery(api.workspaces.list);
   const createWorkspace = useMutation(api.workspaces.create);
   const updateWorkspace = useMutation(api.workspaces.update);
+  const reservePlan = useMutation(api.billing.reservePlan);
+  const usage = useQuery(api.billing.getCurrentUsage);
   const [workspaceId, setWorkspaceId] = useState<Id<"workspaces"> | null>(null);
   const selectedWorkspaceId = workspaceId || workspaces?.[0]?._id || null;
   const queriedWorkspace = useQuery(api.workspaces.get, selectedWorkspaceId ? { id: selectedWorkspaceId } : "skip");
@@ -75,6 +78,12 @@ function CareerHome() {
   const currentResult = result || (activeWorkspace?.scout as ScoutResult | null) || null;
   const currentPlan = (activeWorkspace?.plan as CareerPlanSnapshot | null) || null;
   const currentStatus = status || (currentResult?.message || "");
+  const workspaceIdForSave = activeWorkspace?._id;
+  const savePlan = useCallback(async (plan: CareerPlanSnapshot) => {
+    if (!workspaceIdForSave) return;
+    try { await updateWorkspace({ id: workspaceIdForSave, plan }); }
+    catch { setError("Research completed, but Waypoint could not save it. Check your connection and try again."); }
+  }, [workspaceIdForSave, updateWorkspace]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,7 +98,9 @@ function CareerHome() {
     try {
       const id = await createWorkspace({ goal: submittedGoal });
       setWorkspaceId(id);
-      const data = await scoutJobs(submittedGoal, setStatus);
+      const reservation = await reservePlan({ workspaceId: id });
+      setReservationId(reservation);
+      const data = await scoutJobs(submittedGoal, reservation, setStatus);
       setResult(data);
       await updateWorkspace({ id, targetRole: data.targetRole, scout: data });
       setStatus(data.message);
@@ -99,6 +110,36 @@ function CareerHome() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function refreshPlan() {
+    if (!activeWorkspace) return;
+    setLoading(true);
+    setError("");
+    setResult(null);
+    try {
+      const reservation = await reservePlan({ workspaceId: activeWorkspace._id });
+      setReservationId(reservation);
+      const data = await scoutJobs(currentGoal, reservation, setStatus);
+      setResult(data);
+      await updateWorkspace({ id: activeWorkspace._id, targetRole: data.targetRole, scout: data });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "A new plan could not be started.");
+    } finally { setLoading(false); }
+  }
+
+  async function startCheckout(tier: "starter" | "pro") {
+    const response = await fetch("/api/billing/checkout", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tier }) });
+    const data = await response.json();
+    if (!response.ok) { setError(data.error || "Checkout could not be started."); return; }
+    window.location.assign(data.url);
+  }
+
+  async function openPortal() {
+    const response = await fetch("/api/billing/portal", { method: "POST" });
+    const data = await response.json();
+    if (!response.ok) { setError(data.error || "The customer portal could not be opened."); return; }
+    window.location.assign(data.url);
   }
 
   return (
@@ -130,6 +171,7 @@ function CareerHome() {
         </section>
 
         <section className="job-scout section-wrap" id="job-scout" aria-labelledby="scout-title">
+          <aside className="billing-summary" aria-label="Plan usage"><strong>{usage ? `${usage.remaining} of ${usage.limit} plans remaining` : "Loading plan usage…"}</strong>{usage && <span>{usage.tier[0].toUpperCase() + usage.tier.slice(1)} · resets {new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(usage.resetsAt))} UTC</span>}<div className="billing-actions">{usage?.tier === "free" && <><Button variant="outline" onClick={() => void startCheckout("starter")}>Starter · $2.99/mo</Button><Button variant="outline" onClick={() => void startCheckout("pro")}>Pro · $9.99/mo</Button></>}{usage && usage.tier !== "free" && <Button variant="ghost" onClick={() => void openPortal()}>Manage or change plan</Button>}</div></aside>
           {!!workspaces?.length && <div className="goal-suggestions" aria-label="Your workspaces"><span>Workspaces:</span>{workspaces.map((workspace) => <Button key={workspace._id} type="button" variant={workspace._id === selectedWorkspaceId ? "default" : "outline"} onClick={() => { setWorkspaceId(workspace._id); setGoal(workspace.goal); setGoalEdited(false); setResult(null); setError(""); setStatus(""); }}>{workspace.goal}</Button>)}</div>}
           <div className="section-heading">
             <h2 id="scout-title">Every path starts with a goal</h2>
@@ -229,7 +271,7 @@ function CareerHome() {
               <p className="source-note">Waypoint checked {currentResult.sourceCount} job source{currentResult.sourceCount === 1 ? "" : "s"}. {currentResult.inaccessibleSources} inaccessible; {currentResult.uncertainSources} uncertain. Confirm each opening on its employer page.</p>
             </section>
           )}
-          {currentResult && activeWorkspace && <CareerPlan key={activeWorkspace._id} goal={currentGoal.trim()} scout={currentResult} initialPlan={currentPlan} savedResources={activeWorkspace.savedResources} completedMilestones={activeWorkspace.completedMilestones} onProgressChange={async (savedResources, completedMilestones) => { try { await updateWorkspace({ id: activeWorkspace._id, savedResources, completedMilestones }); } catch { setError("Progress could not be saved. Check your connection and try again."); } }} onPlanChange={async (plan) => { try { await updateWorkspace({ id: activeWorkspace._id, plan }); } catch { setError("Research completed, but Waypoint could not save it. Check your connection and try again."); } }} />}
+          {currentResult && activeWorkspace && <CareerPlan key={`${activeWorkspace._id}-${reservationId || "saved"}`} reservationId={reservationId} autoStart={Boolean(result && reservationId)} onRefresh={refreshPlan} goal={currentGoal.trim()} scout={currentResult} initialPlan={result ? null : currentPlan} savedResources={activeWorkspace.savedResources} completedMilestones={activeWorkspace.completedMilestones} onProgressChange={async (savedResources, completedMilestones) => { try { await updateWorkspace({ id: activeWorkspace._id, savedResources, completedMilestones }); } catch { setError("Progress could not be saved. Check your connection and try again."); } }} onPlanChange={savePlan} />}
         </section>
       </main>
 

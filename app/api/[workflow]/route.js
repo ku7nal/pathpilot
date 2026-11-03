@@ -1,4 +1,6 @@
 import { runCareerPlanResearch, validateCareerPlanInput } from "../../../lib/career-plan-research.mjs";
+import { billingRequest } from "../../../lib/billing-backend.mjs";
+import { clerkConvexToken, clerkUserId } from "../../../lib/clerk-auth.mjs";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -27,12 +29,7 @@ async function readJson(request) {
   } catch { return null; }
 }
 
-async function clerkUserId() {
-  const { auth } = await import("@clerk/nextjs/server");
-  return (await auth()).userId;
-}
-
-export async function POST(request, { params }, getUserId = clerkUserId) {
+export async function POST(request, { params }, getUserId = clerkUserId, billing = billingRequest, getToken = clerkConvexToken) {
   const userId = await getUserId();
   if (!userId) return Response.json({ error: "Sign in to run career research." }, { status: 401 });
   const { workflow } = await params;
@@ -42,9 +39,18 @@ export async function POST(request, { params }, getUserId = clerkUserId) {
   catch { return Response.json({ error: "Send a valid JSON object." }, { status: 400 }); }
   if (body === "too-large") return Response.json({ error: "Request is too large." }, { status: 413 });
   if (!body) return Response.json({ error: "Send a valid JSON object." }, { status: 400 });
+  if (typeof body.reservationId !== "string") return Response.json({ error: "Start a complete plan before researching." }, { status: 400 });
   const validationError = validateCareerPlanInput(workflow, body);
   if (validationError) return Response.json({ error: validationError }, { status: 400 });
-  if (!process.env.TINYFISH_API_KEY) return Response.json({ error: "Live research needs a server-side TINYFISH_API_KEY." }, { status: 503 });
+  let token;
+  try {
+    token = await getToken();
+    if (!(await billing("billing", { kind: "claimWorkflow", reservationId: body.reservationId, workflow }, token)).claimed) return Response.json({ error: "This plan step was already started or its reservation expired. Start a new plan." }, { status: 409 });
+  } catch { return Response.json({ error: "Could not verify your plan allowance." }, { status: 503 }); }
+  if (!process.env.TINYFISH_API_KEY) {
+    try { await billing("billing", { kind: "recordWorkflow", reservationId: body.reservationId, workflow, succeeded: false }, token); } catch {}
+    return Response.json({ error: "Live research needs a server-side TINYFISH_API_KEY." }, { status: 503 });
+  }
 
   const abort = new AbortController();
   request.signal.addEventListener("abort", () => abort.abort(), { once: true });
@@ -54,9 +60,14 @@ export async function POST(request, { params }, getUserId = clerkUserId) {
       const emit = (name, data) => {
         if (!cancelled) controller.enqueue(new TextEncoder().encode(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`));
       };
-      void runCareerPlanResearch(workflow, body, emit, abort.signal)
+      let succeeded = false;
+      void runCareerPlanResearch(workflow, body, (name, data) => { if (name === "complete") succeeded = true; emit(name, data); }, abort.signal)
         .catch((error) => emit("error", { message: error.name === "TimeoutError" ? "Research timed out. Try again." : error.message || "Live research failed." }))
-        .finally(() => { if (!cancelled) controller.close(); });
+        .finally(async () => {
+          try { await billing("billing", { kind: "recordWorkflow", reservationId: body.reservationId, workflow, succeeded }, await getToken()); }
+          catch { emit("error", { message: "Usage could not be settled. Please try again." }); }
+          if (!cancelled) controller.close();
+        });
     },
     cancel() {
       cancelled = true;

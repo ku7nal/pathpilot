@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +42,7 @@ function coverageText(data: Coverage) {
   return parts.join(" ");
 }
 
-export function CareerPlan({ goal, scout, initialPlan, savedResources: initialSaved, completedMilestones: initialCompleted, onProgressChange, onPlanChange }: { goal: string; scout: JobScout; initialPlan: CareerPlanSnapshot | null; savedResources: string[]; completedMilestones: string[]; onProgressChange: (saved: string[], completed: string[]) => void; onPlanChange: (plan: CareerPlanSnapshot) => void }) {
+export function CareerPlan({ goal, scout, reservationId, autoStart, onRefresh, initialPlan, savedResources: initialSaved, completedMilestones: initialCompleted, onProgressChange, onPlanChange }: { goal: string; scout: JobScout; reservationId?: Id<"planReservations"> | null; autoStart: boolean; onRefresh: () => Promise<void>; initialPlan: CareerPlanSnapshot | null; savedResources: string[]; completedMilestones: string[]; onProgressChange: (saved: string[], completed: string[]) => void; onPlanChange: (plan: CareerPlanSnapshot) => void }) {
   const [started, setStarted] = useState(Boolean(initialPlan));
   const [loading, setLoading] = useState(false);
   const [roadmap, setRoadmap] = useState<Roadmap | null>(initialPlan?.roadmap || null);
@@ -61,13 +62,14 @@ export function CareerPlan({ goal, scout, initialPlan, savedResources: initialSa
     onProgressChange(nextSaved, nextCompleted);
   }
 
-  async function buildPlan() {
+  const buildPlan = useCallback(async () => {
+    if (!reservationId) return;
     setStarted(true);
     setLoading(true);
     setRoadmap(null);
     setProjectData(null);
     setOpportunityData(null);
-    const body = { goal, targetRole: scout.targetRole, skills: scout.skills.map((item) => item.name), jobs: scout.jobs };
+    const body = { goal, targetRole: scout.targetRole, skills: scout.skills.map((item) => item.name), jobs: scout.jobs, reservationId };
     const run = async (workflow: Workflow) => {
       setStatuses((current) => ({ ...current, [workflow]: { state: "loading", message: "Waiting for TinyFish…" } }));
       try {
@@ -90,7 +92,11 @@ export function CareerPlan({ goal, scout, initialPlan, savedResources: initialSa
     setOpportunityData(snapshot.opportunityData);
     onPlanChange(snapshot);
     setLoading(false);
-  }
+  }, [goal, onPlanChange, reservationId, scout]);
+
+  useEffect(() => {
+    if (autoStart) void buildPlan();
+  }, [autoStart, buildPlan]);
 
   const projects = projectData?.projects || [];
   const milestoneKeys = projects.flatMap((project) => project.milestones.map((milestone) => `${project.title}\u0000${milestone}`));
@@ -103,7 +109,7 @@ export function CareerPlan({ goal, scout, initialPlan, savedResources: initialSa
   return (
     <>
       <div className="roadmap-action-row">
-        <Button className="pixel-button" type="button" disabled={loading} onClick={buildPlan}>
+        <Button className="pixel-button" type="button" disabled={loading} onClick={onRefresh}>
           {loading && <Spinner />}{loading ? "Researching your plan…" : started ? "Refresh learning, projects & opportunities" : "Research learning, projects & opportunities"}
         </Button>
       </div>

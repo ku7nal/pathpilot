@@ -19,6 +19,14 @@ function events(body) {
   });
 }
 
+function post(body, getUserId = async () => "test-user", billing = async () => ({ claimed: true })) {
+  return POST(new Request("http://localhost/api/job-scout", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...body, reservationId: "test-reservation" }),
+  }), {}, getUserId, billing, async () => "test-token");
+}
+
 test("job scout streams verified, source-linked roles for the inferred target", async () => {
   process.env.TINYFISH_API_KEY = "test-key";
   const agentCalls = [];
@@ -48,11 +56,7 @@ test("job scout streams verified, source-linked roles for the inferred target", 
     ] } })}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
   };
 
-  const response = await POST(new Request("http://localhost/api/job-scout", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ goal: "I want to become an AI engineer" }),
-  }), {}, async () => "test-user");
+  const response = await post({ goal: "I want to become an AI engineer" });
   const responseEvents = events(await response.text());
   const complete = responseEvents.find((event) => event.name === "complete").data;
 
@@ -75,11 +79,7 @@ test("job scout rejects invalid goals before calling TinyFish", async () => {
   process.env.TINYFISH_API_KEY = "test-key";
   globalThis.fetch = async () => assert.fail("TinyFish should not be called for an invalid goal");
 
-  const response = await POST(new Request("http://localhost/api/job-scout", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ goal: "x" }),
-  }), {}, async () => "test-user");
+  const response = await post({ goal: "x" }, async () => "test-user", async () => assert.fail("Invalid goals must not claim quota"));
 
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /3 and 240/);
@@ -89,11 +89,7 @@ test("job scout rejects oversized requests before calling TinyFish", async () =>
   process.env.TINYFISH_API_KEY = "test-key";
   globalThis.fetch = async () => assert.fail("TinyFish should not be called for an oversized request");
 
-  const response = await POST(new Request("http://localhost/api/job-scout", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: `{"goal":"${"x".repeat(8_000)}"}`,
-  }), {}, async () => "test-user");
+  const response = await post({ goal: "x".repeat(8_000) });
 
   assert.equal(response.status, 413);
   assert.match((await response.json()).error, /too large/);
@@ -103,11 +99,7 @@ test("job scout reports missing TinyFish credentials without inventing results",
   delete process.env.TINYFISH_API_KEY;
   globalThis.fetch = async () => assert.fail("TinyFish should not be called without credentials");
 
-  const response = await POST(new Request("http://localhost/api/job-scout", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ goal: "I want to become an AI engineer" }),
-  }), {}, async () => "test-user");
+  const response = await post({ goal: "I want to become an AI engineer" });
 
   assert.equal(response.status, 503);
   assert.match((await response.json()).error, /TINYFISH_API_KEY/);

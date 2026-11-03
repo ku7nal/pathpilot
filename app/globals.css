@@ -135,6 +135,10 @@
 .practitioner-card h4 { margin: 0 0 7px; }
 .deadline-notice { padding: 13px; border-left: 3px solid #e95ecb; background: #101a31; color: #c7d3e4; font-size: 12px; line-height: 1.5; }
 .empty-result { padding: 16px; border-left: 3px solid #526984; background: #07172a; color: #acbbcf; font-size: 13px; line-height: 1.6; }
+.billing-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 20px 0; padding: 16px; border: 1px solid #334661; border-radius: 8px; background: #08172b; }
+.billing-summary > strong { color: #ffdf78; }
+.billing-summary > span { color: #b7c2d2; font-size: 13px; }
+.billing-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 
 @media (max-width: 760px) {
     .practitioner-grid { grid-template-columns: 1fr; }

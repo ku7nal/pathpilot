@@ -1,4 +1,6 @@
 import { inferTargetRole } from "../../../lib/target-role.mjs";
+import { billingRequest } from "../../../lib/billing-backend.mjs";
+import { clerkConvexToken, clerkUserId } from "../../../lib/clerk-auth.mjs";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -108,12 +110,7 @@ function send(controller, type, data) {
   controller.enqueue(new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`));
 }
 
-async function clerkUserId() {
-  const { auth } = await import("@clerk/nextjs/server");
-  return (await auth()).userId;
-}
-
-export async function POST(request, _context, getUserId = clerkUserId) {
+export async function POST(request, _context, getUserId = clerkUserId, billing = billingRequest, getToken = clerkConvexToken) {
   const userId = await getUserId();
   if (!userId) return jsonError(401, "Sign in to run job research.");
   let body;
@@ -142,8 +139,18 @@ export async function POST(request, _context, getUserId = clerkUserId) {
 
   const goal = typeof body.goal === "string" ? body.goal.trim() : "";
   if (goal.length < 3 || goal.length > 240) return jsonError(400, "Enter a goal between 3 and 240 characters.");
+  if (typeof body.reservationId !== "string") return jsonError(400, "Start a complete plan before researching.");
+  let token;
+  try {
+    token = await getToken();
+    if (!(await billing("billing", { kind: "claimWorkflow", reservationId: body.reservationId, workflow: "job-scout" }, token)).claimed) return jsonError(409, "This plan step was already started or its reservation expired. Start a new plan.");
+  } catch { return jsonError(503, "Could not verify your plan allowance."); }
+
   const apiKey = process.env.TINYFISH_API_KEY;
-  if (!apiKey) return jsonError(503, "Live research needs a server-side TINYFISH_API_KEY.");
+  if (!apiKey) {
+    try { await billing("billing", { kind: "recordWorkflow", reservationId: body.reservationId, workflow: "job-scout", succeeded: false }, token); } catch {}
+    return jsonError(503, "Live research needs a server-side TINYFISH_API_KEY.");
+  }
 
   const targetRole = inferTargetRole(goal);
   const abortController = new AbortController();
@@ -158,6 +165,7 @@ export async function POST(request, _context, getUserId = clerkUserId) {
       };
       void (async () => {
         emit("status", { message: "Searching current public job listings…" });
+        let succeeded = false;
         try {
           const searchUrl = new URL("https://api.search.tinyfish.ai");
           searchUrl.searchParams.set("query", `site:boards.greenhouse.io OR site:jobs.lever.co OR site:jobs.ashbyhq.com \"${targetRole}\" jobs`);
@@ -214,9 +222,11 @@ export async function POST(request, _context, getUserId = clerkUserId) {
             uncertainSources,
             message: uniqueJobs.length ? "Research complete." : candidates.length ? "No open roles could be verified from these sources." : "No matching job sources were found.",
           });
+          succeeded = true;
         } catch (error) {
           if (!abortController.signal.aborted) emit("error", { message: error.name === "TimeoutError" ? "Research timed out. Try again." : error.message || "Live research failed." });
         } finally {
+          try { await billing("billing", { kind: "recordWorkflow", reservationId: body.reservationId, workflow: "job-scout", succeeded }, await getToken()); } catch { emit("error", { message: "Usage could not be settled. Please try again." }); }
           if (!cancelled) streamController.close();
         }
       })();

@@ -22,8 +22,8 @@ async function post(workflow, body, getUserId = async () => "test-user") {
   return POST(new Request(`http://localhost/api/${workflow}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  }), { params: Promise.resolve({ workflow }) }, getUserId);
+    body: JSON.stringify({ ...body, reservationId: "test-reservation" }),
+  }), { params: Promise.resolve({ workflow }) }, getUserId, async () => ({ claimed: true }), async () => "test-token");
 }
 
 test("career research rejects unauthenticated requests", async () => {
@@ -152,7 +152,7 @@ test("Next opportunity route includes only future dates quoted in fetched offici
   assert.deepEqual(complete.uncertainSources, ["TinyFish Search query", "another.events"]);
 });
 
-test("Next career routes report Agent failures as uncertain source coverage", async () => {
+test("Next career routes fail when TinyFish Agent is unavailable", async () => {
   process.env.TINYFISH_API_KEY = "test-key";
   const page = "https://roadmap.sh/frontend";
   globalThis.fetch = async (input) => {
@@ -176,9 +176,8 @@ test("Next career routes report Agent failures as uncertain source coverage", as
 
   for (const [workflow, body, source] of cases) {
     const response = await post(workflow, body);
-    const complete = readEvents(await response.text()).find((event) => event.name === "complete").data;
+    const responseEvents = readEvents(await response.text());
     assert.equal(response.status, 200);
-    assert.deepEqual(complete.inaccessibleSources, []);
-    assert.ok(complete.uncertainSources.includes(source), `${workflow}: ${JSON.stringify(complete)}`);
+    assert.ok(responseEvents.some((event) => event.name === "error"), `${workflow} should release its reservation after provider failure (${source})`);
   }
 });
