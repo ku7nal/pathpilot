@@ -40,20 +40,8 @@ function isJobBoardUrl(value) {
   }
 }
 
-function isPublicHttpsUrl(value) {
-  try {
-    const url = new URL(value);
-    const hostname = url.hostname.toLowerCase();
-    return url.protocol === "https:" && !url.username && !url.password &&
-      hostname !== "localhost" && !hostname.endsWith(".localhost") && !hostname.endsWith(".local") &&
-      !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) && !hostname.includes(":");
-  } catch {
-    return false;
-  }
-}
-
 function cleanJob(job, sourceUrl) {
-  if (!job || job.is_open !== true || typeof job.title !== "string" || !job.title.trim() || typeof job.company !== "string" || !job.company.trim() || !isPublicHttpsUrl(job.application_url)) return null;
+  if (!job || job.is_open !== true || typeof job.title !== "string" || !job.title.trim() || typeof job.company !== "string" || !job.company.trim() || !isJobBoardUrl(job.application_url)) return null;
   return {
     title: job.title.trim().slice(0, 160),
     company: job.company.trim().slice(0, 120),

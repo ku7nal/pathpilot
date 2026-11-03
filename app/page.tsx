@@ -18,6 +18,7 @@ type Job = {
   experience: string;
   skills: string[];
   url: string;
+  sourceUrl: string;
 };
 
 type ScoutResult = {
@@ -221,7 +222,8 @@ export default function Home() {
                       </CardHeader>
                       <CardContent className="job-skills p-0">
                         {job.skills.map((skill) => <span key={skill}>{skill}</span>)}
-                        <a className="job-link" href={job.url} target="_blank" rel="noopener noreferrer">View original listing</a>
+                        <a className="job-link" href={job.sourceUrl} target="_blank" rel="noopener noreferrer">View source</a>
+                        <a className="job-link" href={job.url} target="_blank" rel="noopener noreferrer">Apply</a>
                       </CardContent>
                     </Card>
                   ))}

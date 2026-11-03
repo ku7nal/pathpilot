@@ -38,9 +38,11 @@ test("job scout streams verified, source-linked roles for the inferred target", 
     const index = agentCalls.length;
     const company = index === 1 ? "Acme" : "Bright";
     const page = index === 1 ? "https://boards.greenhouse.io/acme/jobs/1" : "https://jobs.lever.co/bright/2";
+    const applicationPage = index === 1 ? "https://boards.greenhouse.io/acme/jobs/3" : "https://jobs.lever.co/bright/4";
     return new Response(`data: ${JSON.stringify({ type: "COMPLETE", status: "COMPLETED", result: { jobs: [
-      { title: "AI Engineer", company, location: "Remote", experience: "2+ years", skills: ["Python", "SQL"], application_url: page, is_open: true },
+      { title: "AI Engineer", company, location: "Remote", experience: "2+ years", skills: ["Python", "SQL"], application_url: applicationPage, is_open: true },
       { title: "Closed role", company, skills: ["Python"], application_url: page, is_open: false },
+      { title: "Unverified role", company, skills: ["Invented skill"], application_url: "https://example.com/fake", is_open: true },
     ] } })}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
   };
 
@@ -57,6 +59,8 @@ test("job scout streams verified, source-linked roles for the inferred target", 
   assert.ok(responseEvents.some((event) => event.name === "status"));
   assert.equal(complete.targetRole, "AI Engineer");
   assert.deepEqual(complete.jobs.map((job) => job.company), ["Acme", "Bright"]);
+  assert.equal(complete.jobs[0].sourceUrl, "https://boards.greenhouse.io/acme/jobs/1");
+  assert.equal(complete.jobs[0].url, "https://boards.greenhouse.io/acme/jobs/3");
   assert.deepEqual(complete.skills, [{ name: "Python", count: 2 }, { name: "SQL", count: 2 }]);
   assert.equal(complete.sourceCount, 2);
   assert.equal(agentCalls.length, 2);
