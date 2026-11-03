@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { CareerPlan } from "@/components/career-plan";
 
 type Job = {
   title: string;
@@ -117,7 +118,8 @@ export default function Home() {
         </a>
         <nav className="main-nav" aria-label="Main navigation">
           <a href="#job-scout">Explore</a>
-          <a href="#job-scout">Job market</a>
+          <a href="#roadmap-title">Career plan</a>
+          <a href="#workspace-title">Workspace</a>
         </nav>
         <a className="header-cta pixel-button" href="#job-scout">Start your path</a>
       </header>
@@ -234,6 +236,7 @@ export default function Home() {
               <p className="source-note">Waypoint checked {result.sourceCount} job source{result.sourceCount === 1 ? "" : "s"}. {result.inaccessibleSources} inaccessible; {result.uncertainSources} uncertain. Confirm each opening on its employer page.</p>
             </section>
           )}
+          {result && <CareerPlan key={goal.trim().toLowerCase()} goal={goal.trim()} scout={result} />}
         </section>
       </main>
 
