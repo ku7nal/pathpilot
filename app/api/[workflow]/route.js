@@ -62,7 +62,10 @@ export async function POST(request, { params }, getUserId = clerkUserId, billing
       };
       let succeeded = false;
       void runCareerPlanResearch(workflow, body, (name, data) => { if (name === "complete") succeeded = true; emit(name, data); }, abort.signal)
-        .catch((error) => emit("error", { message: error.name === "TimeoutError" ? "Research timed out. Try again." : error.message || "Live research failed." }))
+        .catch((error) => {
+          console.error("Career research failed", { workflow, error: error.message });
+          emit("error", { message: error.name === "TimeoutError" ? "Research timed out. Try again." : error.message || "Live research failed." });
+        })
         .finally(async () => {
           try { await billing("billing", { kind: "recordWorkflow", reservationId: body.reservationId, workflow, succeeded }, await getToken()); }
           catch { emit("error", { message: "Usage could not be settled. Please try again." }); }

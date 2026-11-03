@@ -28,7 +28,8 @@ export async function POST(request) {
   try {
     await billingRequest("webhook", { eventKey: createHash("sha256").update(raw).digest("hex"), eventName, payload });
     return new Response("OK");
-  } catch {
+  } catch (error) {
+    console.error("Lemon Squeezy webhook processing failed", { error: error.message });
     return new Response("Webhook processing failed", { status: 503 });
   }
 }

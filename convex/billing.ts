@@ -1,5 +1,6 @@
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { assertAccountExists, isDeletedAccount } from "./account-key";
 import type { DataModel, Id } from "./_generated/dataModel";
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 import { v } from "convex/values";
@@ -31,6 +32,7 @@ function limitFor(tier: "free" | "starter" | "pro") {
 async function ownerId(ctx: BillingContext) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Unauthenticated");
+  await assertAccountExists(ctx, identity.tokenIdentifier);
   return identity.tokenIdentifier;
 }
 
@@ -68,6 +70,7 @@ export const getCurrentUsage = query({
 });
 
 async function reserve(ctx: GenericMutationCtx<DataModel>, owner: string, workspaceId: Id<"workspaces">) {
+    await assertAccountExists(ctx, owner);
     const workspace = await ctx.db.get(workspaceId);
     if (!workspace || workspace.ownerId !== owner) throw new Error("Workspace not found");
     const now = Date.now();
@@ -200,6 +203,11 @@ export const processWebhook = internalMutation({
     const data = payload?.data;
     const attrs = data?.attributes;
     const resourceId = typeof data?.id === "string" ? data.id : "";
+    const relatedSubscriptionId = payload?.data?.relationships?.subscription?.data?.id;
+    const subscriptionId = subscriptionEvents.has(eventName)
+      ? resourceId
+      : typeof relatedSubscriptionId === "string" ? relatedSubscriptionId
+      : typeof attrs?.subscription_id === "number" || typeof attrs?.subscription_id === "string" ? String(attrs.subscription_id) : undefined;
     let ignored = true;
     if (attrs && String(attrs.store_id) === process.env.LEMON_SQUEEZY_STORE_ID) {
       if (subscriptionEvents.has(eventName)) {
@@ -207,7 +215,8 @@ export const processWebhook = internalMutation({
         const customOwner = payload?.meta?.custom_data?.owner_id;
         const owner = typeof customOwner === "string" ? customOwner : existingBySubscription?.ownerId;
         const mappedTier = typeof attrs.variant_id === "number" || typeof attrs.variant_id === "string" ? variantTier(String(attrs.variant_id)) : null;
-        if (owner && (mappedTier || existingBySubscription)) {
+        const deleted = owner ? await isDeletedAccount(ctx, owner) : false;
+        if (owner && !deleted && (mappedTier || existingBySubscription)) {
           const current = await accountFor(ctx, owner);
           const providerUpdatedAt = typeof attrs.updated_at === "string" ? attrs.updated_at : undefined;
           if (!providerUpdatedAt || !current?.providerUpdatedAt || Date.parse(providerUpdatedAt) >= Date.parse(current.providerUpdatedAt)) {
@@ -229,8 +238,6 @@ export const processWebhook = internalMutation({
           ignored = false;
         }
       } else if (paymentEvents.has(eventName)) {
-        const relationId = payload?.data?.relationships?.subscription?.data?.id;
-        const subscriptionId = typeof relationId === "string" ? relationId : typeof attrs.subscription_id === "number" || typeof attrs.subscription_id === "string" ? String(attrs.subscription_id) : "";
         const current = subscriptionId ? await ctx.db.query("billingAccounts").withIndex("by_subscription", (q) => q.eq("subscriptionId", subscriptionId)).unique() : null;
         if (current) {
           const providerUpdatedAt = typeof attrs.updated_at === "string" ? attrs.updated_at : typeof attrs.created_at === "string" ? attrs.created_at : undefined;
@@ -242,7 +249,7 @@ export const processWebhook = internalMutation({
         }
       }
     }
-    await ctx.db.insert("billingWebhookEvents", { eventKey, eventName, resourceId, receivedAt: Date.now(), ignored });
+    await ctx.db.insert("billingWebhookEvents", { eventKey, eventName, resourceId: ignored ? "" : resourceId, ...(!ignored && subscriptionId ? { subscriptionId } : {}), receivedAt: Date.now(), ignored });
     return { duplicate: false, ignored };
   },
 });

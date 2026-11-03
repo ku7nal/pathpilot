@@ -3,7 +3,7 @@ import { billingRequest } from "../../../lib/billing-backend.mjs";
 import { clerkConvexToken, clerkUserId } from "../../../lib/clerk-auth.mjs";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 360;
 
 const jobSchema = {
   type: "object",
@@ -224,6 +224,7 @@ export async function POST(request, _context, getUserId = clerkUserId, billing =
           });
           succeeded = true;
         } catch (error) {
+          console.error("Job scout failed", { error: error.message });
           if (!abortController.signal.aborted) emit("error", { message: error.name === "TimeoutError" ? "Research timed out. Try again." : error.message || "Live research failed." });
         } finally {
           try { await billing("billing", { kind: "recordWorkflow", reservationId: body.reservationId, workflow: "job-scout", succeeded }, await getToken()); } catch { emit("error", { message: "Usage could not be settled. Please try again." }); }

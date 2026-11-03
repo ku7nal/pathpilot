@@ -14,6 +14,7 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_owner_updated", ["ownerId", "updatedAt"]),
   workspaceCounts: defineTable({ ownerId: v.string(), count: v.number() }).index("by_owner", ["ownerId"]),
+  deletedAccounts: defineTable({ ownerHash: v.string(), deletedAt: v.number() }).index("by_owner_hash", ["ownerHash"]),
   billingAccounts: defineTable({
     ownerId: v.string(),
     tier: v.union(v.literal("starter"), v.literal("pro")),
@@ -39,5 +40,5 @@ export default defineSchema({
     expiresAt: v.number(),
     settledAt: v.optional(v.number()),
   }).index("by_owner_month", ["ownerId", "month"]),
-  billingWebhookEvents: defineTable({ eventKey: v.string(), eventName: v.string(), resourceId: v.string(), receivedAt: v.number(), ignored: v.boolean() }).index("by_event_key", ["eventKey"]),
+  billingWebhookEvents: defineTable({ eventKey: v.string(), eventName: v.string(), resourceId: v.string(), subscriptionId: v.optional(v.string()), receivedAt: v.number(), ignored: v.boolean() }).index("by_event_key", ["eventKey"]).index("by_subscription", ["subscriptionId"]).index("by_resource", ["resourceId"]),
 });

@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { POST } from "../app/api/job-scout/route.js";
+import { POST, runtime, maxDuration } from "../app/api/job-scout/route.js";
 
 const realFetch = globalThis.fetch;
 const originalApiKey = process.env.TINYFISH_API_KEY;
+
+test("job scout uses a Node.js streaming route with the production duration", () => {
+  assert.equal(runtime, "nodejs");
+  assert.equal(maxDuration, 360);
+});
 
 afterEach(() => {
   globalThis.fetch = realFetch;

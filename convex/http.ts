@@ -48,6 +48,9 @@ http.route({
       const subscription = await ctx.runQuery(internal.billing.portalSubscription, { ownerId: identity.tokenIdentifier });
       return Response.json(subscription);
     }
+    if (body?.kind === "deleteAccountData") {
+      return Response.json(await ctx.runMutation(internal.accounts.deleteAccountData, { ownerId: identity.tokenIdentifier }));
+    }
     return new Response("Unknown billing operation", { status: 400 });
   }),
 });

@@ -139,6 +139,10 @@
 .billing-summary > strong { color: #ffdf78; }
 .billing-summary > span { color: #b7c2d2; font-size: 13px; }
 .billing-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.delete-account { margin: 16px auto 40px; max-width: 720px; padding: 16px; border: 1px solid #7d3342; border-radius: 8px; background: #08172b; color: #c7d3e4; }
+.delete-account summary { color: #ffb4c0; cursor: pointer; font-weight: 700; }
+.delete-account form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 12px; }
+.delete-account form label { flex-basis: 100%; }
 
 @media (max-width: 760px) {
     .practitioner-grid { grid-template-columns: 1fr; }

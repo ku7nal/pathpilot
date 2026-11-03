@@ -3,6 +3,7 @@ import type { DataModel, Doc } from "./_generated/dataModel";
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
+import { assertAccountExists } from "./account-key";
 
 type WorkspaceContext = GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel>;
 const MAX_WORKSPACES = 50;
@@ -16,6 +17,7 @@ function validateSize(value: unknown) {
 async function identity(ctx: WorkspaceContext) {
   const user = await ctx.auth.getUserIdentity();
   if (!user) throw new Error("Unauthenticated");
+  await assertAccountExists(ctx, user.tokenIdentifier);
   return user.tokenIdentifier;
 }
 

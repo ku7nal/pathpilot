@@ -15,6 +15,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { CareerPlan, type CareerPlanSnapshot } from "@/components/career-plan";
+import { DeleteAccount } from "@/components/delete-account";
 import { postResearch } from "@/lib/post-research";
 
 type Job = {
@@ -273,6 +274,7 @@ function CareerHome() {
           )}
           {currentResult && activeWorkspace && <CareerPlan key={`${activeWorkspace._id}-${reservationId || "saved"}`} reservationId={reservationId} autoStart={Boolean(result && reservationId)} onRefresh={refreshPlan} goal={currentGoal.trim()} scout={currentResult} initialPlan={result ? null : currentPlan} savedResources={activeWorkspace.savedResources} completedMilestones={activeWorkspace.completedMilestones} onProgressChange={async (savedResources, completedMilestones) => { try { await updateWorkspace({ id: activeWorkspace._id, savedResources, completedMilestones }); } catch { setError("Progress could not be saved. Check your connection and try again."); } }} onPlanChange={savePlan} />}
         </section>
+        <div className="section-wrap"><DeleteAccount /></div>
       </main>
 
       <footer className="site-footer">

@@ -16,6 +16,7 @@ export async function POST() {
     if (!response.ok || typeof url !== "string" || new URL(url).protocol !== "https:") throw new Error("Lemon Squeezy could not open the customer portal.");
     return Response.json({ url });
   } catch (error) {
+    console.error("Lemon Squeezy customer portal failed", { error: error.message });
     return Response.json({ error: error.message || "Could not open customer portal." }, { status: 502 });
   }
 }

@@ -1,10 +1,10 @@
 import { billingRequest } from "../../../../lib/billing-backend.mjs";
+import { clerkSession } from "../../../../lib/clerk-auth.mjs";
 
 export const runtime = "nodejs";
 
-export async function POST(request) {
-  const { auth } = await import("@clerk/nextjs/server");
-  const session = await auth();
+export async function POST(request, _context, getSession = clerkSession, billing = billingRequest) {
+  const session = await getSession();
   if (!session.userId) return Response.json({ error: "Sign in to choose a plan." }, { status: 401 });
   const { tier } = await request.json().catch(() => ({}));
   if (tier !== "starter" && tier !== "pro") return Response.json({ error: "Choose Starter or Pro." }, { status: 400 });
@@ -14,8 +14,8 @@ export async function POST(request) {
   }
   try {
     const token = await session.getToken({ template: "convex" });
-    const { ownerId } = await billingRequest("billing", { kind: "identity" }, token);
-    const existing = await billingRequest("billing", { kind: "portalSubscription" }, token);
+    const { ownerId } = await billing("billing", { kind: "identity" }, token);
+    const existing = await billing("billing", { kind: "portalSubscription" }, token);
     const cancelledAndEnded = existing?.status === "cancelled" && existing.endsAt && Date.parse(existing.endsAt) <= Date.now();
     if (existing?.subscriptionId && !["expired"].includes(existing.status) && !cancelledAndEnded) {
       return Response.json({ error: "Manage or change your existing subscription through the customer portal." }, { status: 409 });
@@ -30,6 +30,7 @@ export async function POST(request) {
     if (!response.ok || typeof url !== "string" || new URL(url).protocol !== "https:") throw new Error("Lemon Squeezy could not create checkout.");
     return Response.json({ url });
   } catch (error) {
+    console.error("Lemon Squeezy checkout failed", { tier, error: error.message });
     return Response.json({ error: error.message || "Could not start checkout." }, { status: 502 });
   }
 }
