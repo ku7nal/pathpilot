@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState, useSyncExternalStore } from "react";
 import { Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { CareerPlan } from "@/components/career-plan";
+import { CareerPlan, type CareerPlanSnapshot } from "@/components/career-plan";
 import { postResearch } from "@/lib/post-research";
 
 type Job = {
@@ -43,23 +43,81 @@ async function scoutJobs(goal: string, onProgress: (message: string) => void): P
   return postResearch<ScoutResult>("/api/job-scout", { goal }, onProgress);
 }
 
+function workspaceKey(goal: string) {
+  return `pathpilot:workspace:${goal.trim().toLowerCase()}`;
+}
+
+function saveWorkspace(goal: string, scout: ScoutResult, plan: CareerPlanSnapshot | null) {
+  try {
+    localStorage.setItem("pathpilot:last-goal", goal);
+    localStorage.setItem(workspaceKey(goal), JSON.stringify({ goal, scout, plan }));
+  } catch { /* Browser storage may be unavailable. */ }
+}
+
+function subscribeWorkspace(listener: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", listener);
+  return () => window.removeEventListener("storage", listener);
+}
+
+function getWorkspaceSnapshot() {
+  try {
+    const goal = localStorage.getItem("pathpilot:last-goal");
+    return goal ? localStorage.getItem(workspaceKey(goal)) : null;
+  } catch { return null; }
+}
+
+function isScoutResult(value: unknown): value is ScoutResult {
+  if (!value || typeof value !== "object") return false;
+  const data = value as Partial<ScoutResult>;
+  return typeof data.targetRole === "string" && Array.isArray(data.jobs) && Array.isArray(data.skills);
+}
+
+function isCareerPlan(value: unknown): value is CareerPlanSnapshot | null {
+  if (value === null) return true;
+  if (!value || typeof value !== "object") return false;
+  const data = value as Partial<CareerPlanSnapshot>;
+  return (data.roadmap === null || Array.isArray(data.roadmap?.phases)) &&
+    (data.projectData === null || (Array.isArray(data.projectData?.projects) && Array.isArray(data.projectData?.practitioners))) &&
+    (data.opportunityData === null || Array.isArray(data.opportunityData?.opportunities));
+}
+
 export default function Home() {
   const [goal, setGoal] = useState("");
+  const [goalEdited, setGoalEdited] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ScoutResult | null>(null);
+  const [planSnapshot, setPlanSnapshot] = useState<CareerPlanSnapshot | null>(null);
+  const cachedRaw = useSyncExternalStore(subscribeWorkspace, getWorkspaceSnapshot, () => null);
+  const cachedWorkspace = useMemo(() => {
+    try {
+      const cached = JSON.parse(cachedRaw || "null");
+      if (typeof cached?.goal !== "string" || !isScoutResult(cached.scout) || !isCareerPlan(cached.plan)) return null;
+      return cached as { goal: string; scout: ScoutResult; plan: CareerPlanSnapshot | null };
+    } catch { return null; }
+  }, [cachedRaw]);
+  const currentGoal = goalEdited ? goal : goal || cachedWorkspace?.goal || "";
+  const currentResult = result || (!goalEdited ? cachedWorkspace?.scout || null : null);
+  const currentPlan = planSnapshot || (!goalEdited ? cachedWorkspace?.plan || null : null);
+  const currentStatus = status || (!goalEdited ? cachedWorkspace?.scout.message || "" : "");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!event.currentTarget.reportValidity()) return;
+    const submittedGoal = currentGoal.trim();
+    setGoal(submittedGoal);
+    setGoalEdited(true);
     setLoading(true);
     setError("");
     setResult(null);
+    setPlanSnapshot(null);
     setStatus("TinyFish Search is finding current job pages…");
     try {
-      const data = await scoutJobs(goal.trim(), setStatus);
+      const data = await scoutJobs(submittedGoal, setStatus);
       setResult(data);
+      saveWorkspace(submittedGoal, data, null);
       setStatus(data.message);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Live research failed. Try again.");
@@ -117,8 +175,8 @@ export default function Home() {
                     maxLength={240}
                     placeholder="I want to become an AI engineer"
                     autoComplete="off"
-                    value={goal}
-                    onChange={(event) => setGoal(event.target.value)}
+                    value={currentGoal}
+                    onChange={(event) => { setGoal(event.target.value); setGoalEdited(true); }}
                     aria-describedby="goal-help"
                     required
                   />
@@ -132,16 +190,16 @@ export default function Home() {
             <div className="goal-suggestions" aria-label="Example goals">
               <span>Try a goal:</span>
               {suggestedGoals.map((suggestion) => (
-                <Button key={suggestion} type="button" variant="outline" className="suggestion-chip" onClick={() => setGoal(suggestion)}>
+                <Button key={suggestion} type="button" variant="outline" className="suggestion-chip" onClick={() => { setGoal(suggestion); setGoalEdited(true); }}>
                   {suggestion.replace(/^I want to (?:become|learn) /, "").replace(/^(?:a|an|the) /i, "")}
                 </Button>
               ))}
             </div>
           </form>
 
-          <div className="research-state" role="status" aria-live="polite" hidden={!loading && !status}>
+          <div className="research-state" role="status" aria-live="polite" hidden={!loading && !currentStatus}>
             {loading && <Spinner className="size-5" />}
-            <span>{status}</span>
+            <span>{currentStatus}</span>
           </div>
 
           {error && (
@@ -151,30 +209,30 @@ export default function Home() {
             </Alert>
           )}
 
-          {result && (
+          {currentResult && (
             <section className="results" aria-labelledby="results-title">
               <div className="results-topline">
                 <div>
                   <p className="section-label">LIVE JOB SIGNALS</p>
-                  <h3 id="results-title">Hiring signals for {result.targetRole}</h3>
+                  <h3 id="results-title">Hiring signals for {currentResult.targetRole}</h3>
                 </div>
-                <p className="results-summary">{result.message}</p>
+                <p className="results-summary">{currentResult.message}</p>
               </div>
 
-              {result.skills.length > 0 && (
+              {currentResult.skills.length > 0 && (
                 <div className="skill-signals">
                   <h4>Skills showing up in these roles</h4>
                   <div className="skill-list">
-                    {result.skills.map((skill) => (
+                    {currentResult.skills.map((skill) => (
                       <Badge key={skill.name} variant="outline" className="skill-chip">{skill.name} · {skill.count} {skill.count === 1 ? "role" : "roles"}</Badge>
                     ))}
                   </div>
                 </div>
               )}
 
-              {result.jobs.length > 0 ? (
+              {currentResult.jobs.length > 0 ? (
                 <div className="job-grid">
-                  {result.jobs.map((job) => (
+                  {currentResult.jobs.map((job) => (
                     <Card className="job-card" key={`${job.company}-${job.title}`}>
                       <CardHeader className="job-card-top p-0">
                         <span className="job-company">{job.company}</span>
@@ -193,10 +251,10 @@ export default function Home() {
               ) : (
                 <p className="empty-result">No open roles could be verified from the sources checked.</p>
               )}
-              <p className="source-note">Waypoint checked {result.sourceCount} job source{result.sourceCount === 1 ? "" : "s"}. {result.inaccessibleSources} inaccessible; {result.uncertainSources} uncertain. Confirm each opening on its employer page.</p>
+              <p className="source-note">Waypoint checked {currentResult.sourceCount} job source{currentResult.sourceCount === 1 ? "" : "s"}. {currentResult.inaccessibleSources} inaccessible; {currentResult.uncertainSources} uncertain. Confirm each opening on its employer page.</p>
             </section>
           )}
-          {result && <CareerPlan key={goal.trim().toLowerCase()} goal={goal.trim()} scout={result} />}
+          {currentResult && <CareerPlan key={currentGoal.trim().toLowerCase()} goal={currentGoal.trim()} scout={currentResult} initialPlan={currentPlan} onPlanChange={(plan) => { setPlanSnapshot(plan); saveWorkspace(currentGoal.trim(), currentResult, plan); }} />}
         </section>
       </main>
 
