@@ -123,12 +123,13 @@ test("Next opportunity route includes only future dates quoted in fetched offici
       if (url.searchParams.get("query").includes("upcoming technology events")) return new Response("Search unavailable", { status: 503 });
       return Response.json({ results: [{ title: "Official AI Sprint", url: page, site_name: "Event Org" }, { title: "Other event", url: unreportedPage }] });
     }
-    if (url.hostname === "api.fetch.tinyfish.ai") return Response.json({ results: [{ url: page, text: "Applications close on 2030-10-12. Open to students." }, { url: unreportedPage, text: "Future event" }] });
+    if (url.hostname === "api.fetch.tinyfish.ai") return Response.json({ results: [{ url: page, text: "Applications close on 2030-10-12. Open to students. Hosted by the Official Event Org." }, { url: unreportedPage, text: "Future event" }] });
     return new Response(`data: ${JSON.stringify({ type: "COMPLETE", status: "COMPLETED", result: {
       inspected_urls: [page], inaccessible_urls: [], opportunities: [
-        { title: "AI Sprint", type: "Hackathon", summary: "Build an AI project", date: "2030-10-12", date_label: "Application deadline", date_evidence: "Applications close on 2030-10-12", eligibility: "Students", location: "Online", source_url: page, source_is_official: true, application_url: page },
-        { title: "Unverified date", type: "Event", summary: "No date quote", date: "2030-10-13", date_label: "Event date", date_evidence: "October 13", eligibility: "Open", location: "Online", source_url: page, source_is_official: true, application_url: page },
-        { title: "Unverified application", type: "Event", summary: "Application URL is absent from the page", date: "2030-10-14", date_label: "Application deadline", date_evidence: "Applications close on 2030-10-12", eligibility: "Students", location: "Online", source_url: page, source_is_official: true, application_url: "https://fake.example/apply" },
+        { title: "AI Sprint", type: "Hackathon", summary: "Build an AI project", date: "2030-10-12", date_label: "Application deadline", date_evidence: "Applications close on 2030-10-12", official_evidence: "Hosted by the Official Event Org", eligibility: "Students", location: "Online", source_url: page, source_is_official: true, application_url: page },
+        { title: "Unverified date", type: "Event", summary: "No date quote", date: "2030-10-13", date_label: "Event date", date_evidence: "October 13", official_evidence: "Hosted by the Official Event Org", eligibility: "Open", location: "Online", source_url: page, source_is_official: true, application_url: page },
+        { title: "Unverified application", type: "Event", summary: "Application URL is absent from the page", date: "2030-10-14", date_label: "Application deadline", date_evidence: "Applications close on 2030-10-12", official_evidence: "Hosted by the Official Event Org", eligibility: "Students", location: "Online", source_url: page, source_is_official: true, application_url: "https://fake.example/apply" },
+        { title: "Unverified organizer", type: "Event", summary: "Organizer quote is absent", date: "2030-10-15", date_label: "Application deadline", date_evidence: "Applications close on 2030-10-12", official_evidence: "Officially organized by Example Events", eligibility: "Students", location: "Online", source_url: page, source_is_official: true, application_url: page },
       ],
     } })}\n\n`, { headers: { "content-type": "text/event-stream" } });
   };
@@ -141,6 +142,7 @@ test("Next opportunity route includes only future dates quoted in fetched offici
   assert.ok(responseEvents.some((event) => event.name === "progress"));
   assert.equal(complete.opportunities.length, 1);
   assert.equal(complete.opportunities[0].sourceUrl, page);
+  assert.equal(complete.opportunities[0].officialEvidence, "Hosted by the Official Event Org");
   assert.deepEqual(complete.checkedSources.map((source) => source.url), [page]);
   assert.deepEqual(complete.uncertainSources, ["TinyFish Search query", "another.events"]);
 });
