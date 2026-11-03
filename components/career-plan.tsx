@@ -18,6 +18,7 @@ type Coverage = { checkedSources: (string | { title: string; url: string })[]; i
 type Roadmap = Coverage & { phases: Phase[] };
 type Projects = Coverage & { practitioners: Practitioner[]; projects: Project[] };
 type Opportunities = Coverage & { opportunities: Opportunity[] };
+export type CareerPlanSnapshot = { roadmap: Roadmap | null; projectData: Projects | null; opportunityData: Opportunities | null };
 type JobScout = { targetRole: string; jobs: Job[]; skills: Skill[] };
 type Workflow = "learning-roadmap" | "project-scout" | "opportunity-scout";
 type Status = { state: "idle" | "loading" | "done" | "error"; message: string };
@@ -40,13 +41,17 @@ function coverageText(data: Coverage) {
   return parts.join(" ");
 }
 
-export function CareerPlan({ goal, scout }: { goal: string; scout: JobScout }) {
-  const [started, setStarted] = useState(false);
+export function CareerPlan({ goal, scout, initialPlan, onPlanChange }: { goal: string; scout: JobScout; initialPlan: CareerPlanSnapshot | null; onPlanChange: (plan: CareerPlanSnapshot) => void }) {
+  const [started, setStarted] = useState(Boolean(initialPlan));
   const [loading, setLoading] = useState(false);
-  const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
-  const [projectData, setProjectData] = useState<Projects | null>(null);
-  const [opportunityData, setOpportunityData] = useState<Opportunities | null>(null);
-  const [statuses, setStatuses] = useState<Record<Workflow, Status>>({ "learning-roadmap": initialStatus, "project-scout": initialStatus, "opportunity-scout": initialStatus });
+  const [roadmap, setRoadmap] = useState<Roadmap | null>(initialPlan?.roadmap || null);
+  const [projectData, setProjectData] = useState<Projects | null>(initialPlan?.projectData || null);
+  const [opportunityData, setOpportunityData] = useState<Opportunities | null>(initialPlan?.opportunityData || null);
+  const [statuses, setStatuses] = useState<Record<Workflow, Status>>({
+    "learning-roadmap": initialPlan?.roadmap ? { state: "done", message: initialPlan.roadmap.message } : initialStatus,
+    "project-scout": initialPlan?.projectData ? { state: "done", message: initialPlan.projectData.message } : initialStatus,
+    "opportunity-scout": initialPlan?.opportunityData ? { state: "done", message: initialPlan.opportunityData.message } : initialStatus,
+  });
   const [saved, setSaved] = useState<string[]>([]);
   const [completed, setCompleted] = useState<string[]>([]);
   const [progressLoaded, setProgressLoaded] = useState(false);
@@ -74,21 +79,27 @@ export function CareerPlan({ goal, scout }: { goal: string; scout: JobScout }) {
     setProjectData(null);
     setOpportunityData(null);
     const body = { goal, targetRole: scout.targetRole, skills: scout.skills.map((item) => item.name), jobs: scout.jobs };
-    const run = async (workflow: Workflow, setData: (data: Record<string, unknown>) => void) => {
+    const run = async (workflow: Workflow) => {
       setStatuses((current) => ({ ...current, [workflow]: { state: "loading", message: "Waiting for TinyFish…" } }));
       try {
         const data = await postResearch<Record<string, unknown>>(`/api/${workflow}`, body, (message) => setStatuses((current) => ({ ...current, [workflow]: { state: "loading", message } })));
-        setData(data);
         setStatuses((current) => ({ ...current, [workflow]: { state: "done", message: String(data.message || "Research complete.") } }));
+        return data;
       } catch (caught) {
         setStatuses((current) => ({ ...current, [workflow]: { state: "error", message: caught instanceof Error ? caught.message : "Live research failed." } }));
+        return null;
       }
     };
-    await Promise.all([
-      run("learning-roadmap", (data) => setRoadmap(data as unknown as Roadmap)),
-      run("project-scout", (data) => setProjectData(data as unknown as Projects)),
-      run("opportunity-scout", (data) => setOpportunityData(data as unknown as Opportunities)),
-    ]);
+    const [roadmapResult, projectsResult, opportunitiesResult] = await Promise.all([run("learning-roadmap"), run("project-scout"), run("opportunity-scout")]);
+    const snapshot = {
+      roadmap: roadmapResult as unknown as Roadmap | null,
+      projectData: projectsResult as unknown as Projects | null,
+      opportunityData: opportunitiesResult as unknown as Opportunities | null,
+    };
+    setRoadmap(snapshot.roadmap);
+    setProjectData(snapshot.projectData);
+    setOpportunityData(snapshot.opportunityData);
+    onPlanChange(snapshot);
     setLoading(false);
   }
 
