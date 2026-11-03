@@ -18,13 +18,18 @@ function readEvents(body) {
   }));
 }
 
-async function post(workflow, body) {
+async function post(workflow, body, getUserId = async () => "test-user") {
   return POST(new Request(`http://localhost/api/${workflow}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
-  }), { params: Promise.resolve({ workflow }) });
+  }), { params: Promise.resolve({ workflow }) }, getUserId);
 }
+
+test("career research rejects unauthenticated requests", async () => {
+  const response = await post("learning-roadmap", {}, async () => null);
+  assert.equal(response.status, 401);
+});
 
 test("Next roadmap route uses job signals and returns inspected resources and coverage", async () => {
   process.env.TINYFISH_API_KEY = "test-key";

@@ -108,7 +108,14 @@ function send(controller, type, data) {
   controller.enqueue(new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`));
 }
 
-export async function POST(request) {
+async function clerkUserId() {
+  const { auth } = await import("@clerk/nextjs/server");
+  return (await auth()).userId;
+}
+
+export async function POST(request, _context, getUserId = clerkUserId) {
+  const userId = await getUserId();
+  if (!userId) return jsonError(401, "Sign in to run job research.");
   let body;
   try {
     const reader = request.body?.getReader();

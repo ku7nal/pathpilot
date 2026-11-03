@@ -27,7 +27,14 @@ async function readJson(request) {
   } catch { return null; }
 }
 
-export async function POST(request, { params }) {
+async function clerkUserId() {
+  const { auth } = await import("@clerk/nextjs/server");
+  return (await auth()).userId;
+}
+
+export async function POST(request, { params }, getUserId = clerkUserId) {
+  const userId = await getUserId();
+  if (!userId) return Response.json({ error: "Sign in to run career research." }, { status: 401 });
   const { workflow } = await params;
   if (!workflows.has(workflow)) return Response.json({ error: "Unknown research workflow." }, { status: 404 });
   let body;

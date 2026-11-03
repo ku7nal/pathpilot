@@ -52,7 +52,7 @@ test("job scout streams verified, source-linked roles for the inferred target", 
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ goal: "I want to become an AI engineer" }),
-  }));
+  }), {}, async () => "test-user");
   const responseEvents = events(await response.text());
   const complete = responseEvents.find((event) => event.name === "complete").data;
 
@@ -79,7 +79,7 @@ test("job scout rejects invalid goals before calling TinyFish", async () => {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ goal: "x" }),
-  }));
+  }), {}, async () => "test-user");
 
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /3 and 240/);
@@ -93,7 +93,7 @@ test("job scout rejects oversized requests before calling TinyFish", async () =>
     method: "POST",
     headers: { "content-type": "application/json" },
     body: `{"goal":"${"x".repeat(8_000)}"}`,
-  }));
+  }), {}, async () => "test-user");
 
   assert.equal(response.status, 413);
   assert.match((await response.json()).error, /too large/);
@@ -107,8 +107,13 @@ test("job scout reports missing TinyFish credentials without inventing results",
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ goal: "I want to become an AI engineer" }),
-  }));
+  }), {}, async () => "test-user");
 
   assert.equal(response.status, 503);
   assert.match((await response.json()).error, /TINYFISH_API_KEY/);
+});
+
+test("job scout rejects unauthenticated requests", async () => {
+  const response = await POST(new Request("http://localhost/api/job-scout", { method: "POST", body: "{}" }), {}, async () => null);
+  assert.equal(response.status, 401);
 });
