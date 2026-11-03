@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,7 +80,6 @@ export function CareerPlan({ goal, scout }: { goal: string; scout: JobScout }) {
   const [projectData, setProjectData] = useState<Projects | null>(null);
   const [opportunityData, setOpportunityData] = useState<Opportunities | null>(null);
   const [statuses, setStatuses] = useState<Record<Workflow, Status>>({ "learning-roadmap": initialStatus, "project-scout": initialStatus, "opportunity-scout": initialStatus });
-  const [error, setError] = useState("");
   const [saved, setSaved] = useState<string[]>([]);
   const [completed, setCompleted] = useState<string[]>([]);
   const [progressLoaded, setProgressLoaded] = useState(false);
@@ -105,7 +103,6 @@ export function CareerPlan({ goal, scout }: { goal: string; scout: JobScout }) {
   async function buildPlan() {
     setStarted(true);
     setLoading(true);
-    setError("");
     setRoadmap(null);
     setProjectData(null);
     setOpportunityData(null);
@@ -143,7 +140,6 @@ export function CareerPlan({ goal, scout }: { goal: string; scout: JobScout }) {
           {loading && <Spinner />}{loading ? "Researching your plan…" : started ? "Refresh learning, projects & opportunities" : "Research learning, projects & opportunities"}
         </Button>
       </div>
-      {error && <Alert variant="destructive" className="state-error"><AlertTitle>Plan research could not be completed</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
       {started && (
         <>
           <section className="roadmap" aria-labelledby="roadmap-title">

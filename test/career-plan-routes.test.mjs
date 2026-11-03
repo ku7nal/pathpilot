@@ -75,10 +75,11 @@ test("Next roadmap route uses job signals and returns inspected resources and co
 test("Next project route returns recommendations only with inspected practitioner evidence", async () => {
   process.env.TINYFISH_API_KEY = "test-key";
   const pages = ["https://github.com/example/one", "https://example.dev/two"];
+  const unreportedPage = "https://portfolio.example/three";
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(input);
-    if (url.hostname === "api.search.tinyfish.ai") return Response.json({ results: pages.map((page) => ({ title: page, url: page })) });
-    if (url.hostname === "api.fetch.tinyfish.ai") return Response.json({ results: pages.map((page) => ({ url: page, text: "Python and model API" })) });
+    if (url.hostname === "api.search.tinyfish.ai") return Response.json({ results: [...pages, unreportedPage].map((page) => ({ title: page, url: page })) });
+    if (url.hostname === "api.fetch.tinyfish.ai") return Response.json({ results: [...pages, unreportedPage].map((page) => ({ url: page, text: "Python and model API" })) });
     const payload = JSON.parse(init.body);
     assert.match(payload.goal, /Python/);
     return new Response(`data: ${JSON.stringify({ type: "COMPLETE", status: "COMPLETED", result: {
@@ -104,18 +105,20 @@ test("Next project route returns recommendations only with inspected practitione
   assert.deepEqual(complete.projects[0].practitioners, ["Ada Dev", "Lin Eng"]);
   assert.deepEqual(complete.projects[0].sources.map((source) => source.url), pages);
   assert.deepEqual(complete.checkedSources.map((source) => source.url), pages);
+  assert.deepEqual(complete.uncertainSources, ["portfolio.example"]);
 });
 
 test("Next opportunity route includes only future dates quoted in fetched official pages", async () => {
   process.env.TINYFISH_API_KEY = "test-key";
   const page = "https://events.example.org/ai-sprint";
+  const unreportedPage = "https://another.events/future";
   globalThis.fetch = async (input) => {
     const url = new URL(input);
     if (url.hostname === "api.search.tinyfish.ai") {
       assert.ok(url.searchParams.has("after_date"));
-      return Response.json({ results: [{ title: "Official AI Sprint", url: page, site_name: "Event Org" }] });
+      return Response.json({ results: [{ title: "Official AI Sprint", url: page, site_name: "Event Org" }, { title: "Other event", url: unreportedPage }] });
     }
-    if (url.hostname === "api.fetch.tinyfish.ai") return Response.json({ results: [{ url: page, text: "Applications close on 2030-10-12. Open to students." }] });
+    if (url.hostname === "api.fetch.tinyfish.ai") return Response.json({ results: [{ url: page, text: "Applications close on 2030-10-12. Open to students." }, { url: unreportedPage, text: "Future event" }] });
     return new Response(`data: ${JSON.stringify({ type: "COMPLETE", status: "COMPLETED", result: {
       inspected_urls: [page], inaccessible_urls: [], opportunities: [
         { title: "AI Sprint", type: "Hackathon", summary: "Build an AI project", date: "2030-10-12", date_label: "Application deadline", date_evidence: "Applications close on 2030-10-12", eligibility: "Students", location: "Online", source_url: page, source_is_official: true, application_url: page },
@@ -134,4 +137,36 @@ test("Next opportunity route includes only future dates quoted in fetched offici
   assert.equal(complete.opportunities.length, 1);
   assert.equal(complete.opportunities[0].sourceUrl, page);
   assert.deepEqual(complete.checkedSources.map((source) => source.url), [page]);
+  assert.deepEqual(complete.uncertainSources, ["another.events"]);
+});
+
+test("Next career routes report Agent failures as uncertain source coverage", async () => {
+  process.env.TINYFISH_API_KEY = "test-key";
+  const page = "https://roadmap.sh/frontend";
+  globalThis.fetch = async (input) => {
+    const url = new URL(input);
+    if (url.hostname === "api.search.tinyfish.ai") {
+      const query = url.searchParams.get("query");
+      if (query.includes("site:roadmap.sh")) return Response.json({ results: [{ title: "Roadmap", url: page, site_name: "roadmap.sh" }] });
+      if (query.includes("site:codedex.io")) return Response.json({ results: [] });
+      if (query.includes("official documentation")) return Response.json({ results: [] });
+      if (url.searchParams.has("after_date")) return Response.json({ results: [{ title: "Candidate", url: "https://events.example.org/event", site_name: "events.example.org" }] });
+      return Response.json({ results: [{ title: "Candidate", url: "https://portfolio.example/work", site_name: "portfolio.example" }] });
+    }
+    if (url.hostname === "api.fetch.tinyfish.ai") return Response.json({ results: [{ url: page, text: "Learning resources" }, { url: "https://portfolio.example/work", text: "Practitioner work" }, { url: "https://events.example.org/event", text: "Official event" }] });
+    return new Response("Agent unavailable", { status: 503 });
+  };
+  const cases = [
+    ["learning-roadmap", { goal: "I want to become a frontend developer", targetRole: "Frontend Developer", skills: ["JavaScript"], jobs: [] }, "roadmap.sh"],
+    ["project-scout", { goal: "I want to become an AI engineer", skills: ["Python"] }, "portfolio.example"],
+    ["opportunity-scout", { goal: "I want to become an AI engineer", skills: ["Python"] }, "events.example.org"],
+  ];
+
+  for (const [workflow, body, source] of cases) {
+    const response = await post(workflow, body);
+    const complete = readEvents(await response.text()).find((event) => event.name === "complete").data;
+    assert.equal(response.status, 200);
+    assert.deepEqual(complete.inaccessibleSources, []);
+    assert.ok(complete.uncertainSources.includes(source), `${workflow}: ${JSON.stringify(complete)}`);
+  }
 });
