@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 680" preserveAspectRatio="xMidYMid slice" shape-rendering="crispEdges" role="img" aria-labelledby="title desc">
-  <title id="title">PathPilot mountain trail</title>
+  <title id="title">Waypoint mountain trail</title>
   <desc id="desc">Pixel-art blue sky and clouds over a mountain valley, green meadow, and a winding trail.</desc>
   <defs>
     <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#1681c9"/><stop offset=".55" stop-color="#37b8dd"/><stop offset="1" stop-color="#b9eef2"/></linearGradient>
